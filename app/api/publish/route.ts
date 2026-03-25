@@ -107,7 +107,7 @@ ${blogContent}`;
     {
       method: "PUT",
       headers: {
-        Authorization: `Bearer ${process.env.GITHUB_PAT}`,
+        Authorization: `Bearer ${process.env.GITHUB_PERSONAL_ACCESS_TOKEN}`,
         Accept: "application/vnd.github+v3+json",
         "Content-Type": "application/json",
       },
