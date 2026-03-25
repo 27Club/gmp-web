@@ -134,17 +134,39 @@ ${blogContent}`;
   return { slug, url: blogUrl };
 }
 
-// POST /api/publish — publish a specific item by ID
-// Called by Make when Approval Status changes to Done
+// POST /api/publish — publish a blog post
+// Accepts: Monday.com webhook, Make HTTP call, or direct API call
 export async function POST(request: NextRequest) {
-  const apiKey = request.headers.get("x-api-key");
-  if (apiKey !== process.env.PUBLISH_API_KEY) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
-
   try {
     const body = await request.json();
-    const itemId = body.itemId || body.item_id;
+
+    // Monday.com webhook challenge/verification
+    if (body.challenge) {
+      return NextResponse.json({ challenge: body.challenge });
+    }
+
+    // Determine item ID from different payload formats
+    let itemId: string | undefined;
+
+    // Monday.com webhook format
+    if (body.event?.pulseId) {
+      // Only process Approval Status column changes to "Done"
+      if (body.event.columnId === COLUMNS.approvalStatus) {
+        const label = body.event.value?.label?.text;
+        if (label !== "Done") {
+          return NextResponse.json({ message: "Ignored — not Done" });
+        }
+      }
+      itemId = String(body.event.pulseId);
+    }
+    // Direct API call format (from Make or manual)
+    else {
+      const apiKey = request.headers.get("x-api-key");
+      if (apiKey !== process.env.PUBLISH_API_KEY) {
+        return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+      }
+      itemId = body.itemId || body.item_id;
+    }
 
     if (!itemId) {
       return NextResponse.json(
